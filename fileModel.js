@@ -9,9 +9,7 @@ const fileSchema = new mongoose.Schema({
         type: String,
         required : true
     },
-    password :{
-        type:String
-    }
+    password : String
 })
 
 module.exports =  mongoose.model("File",fileSchema);

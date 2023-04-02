@@ -2,15 +2,18 @@ const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const File = require('./fileModel');
 require('dotenv').config();
 const app = express();
+
 const upload = multer({ dest: 'uploads/' });
 
 
-
+app.use(express.urlencoded({extended:true}));
 app.use(express.json());
 app.use(cors());
+app.set("view engine", "ejs");
 
 mongoose
   .connect(process.env.MONGO_URL)
@@ -27,9 +30,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         path  : req.file.path,
         originalName : req.file.originalname
     }
-    if(req.body.password != null && req.body.password !== ""){
-        filedata.password = bcrypt.hash(req.body.password,10);
+    if(req.body.text != null && req.body.text !== ""){
+        filedata.password = await bcrypt.hash(req.body.text,10);
     }
+    
 
     try {
       const file = await File.create(filedata)
@@ -44,21 +48,29 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     
 
 });
-app.get('/file/:id', async(req,res)=>{
-  try {
-    const file  = await File.findById(req.params.id);
-    res.download(file.path,file.originalName);
-    
-  } catch (err) {
-     res.status(500).json({error:err.message});
-  }
-  
 
-})
-app.get('/',(req,res)=>{
+app.route("/file/:id").get(handleDownload).post(handleDownload);
+app.get('/test',(req,res)=>{
     res.send("<h1>I am Inevitable!!</h1>");
 })
 
+async function handleDownload(req,res) {
+  const file  = await File.findById(req.params.id);
+
+  if(file.password != null){
+    if(req.body.password == null){
+      res.render("password");
+      return;
+    }
+    if(!await bcrypt.compare(req.body.password , file.password)){
+      res.render("password",{error:true})
+    }
+  }
+
+  res.download(file.path,file.originalName);
+  
+
+}
 app.listen(process.env.PORT||3333, () => {
   console.log('Server started on port 3333');
 });
